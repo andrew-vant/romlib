@@ -6,6 +6,9 @@ import string
 import itertools
 from pprint import pprint
 
+
+log = logging.getLogger(__name__)
+
 # Given a string and a byte stream, how do I know if it matches?
 #
 # Take all lowercase letters. Ensure they differ from each other in the manner

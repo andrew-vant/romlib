@@ -6,6 +6,9 @@ from itertools import chain
 
 from . import util, struct
 
+
+log = logging.getLogger(__name__)
+
 # When arrays are serialized to an external file, the user will probably want
 # to be able to rearrange them to suit whatever they're working on. But they
 # need to be in their original order for patching to work correctly. Array
@@ -66,7 +69,7 @@ class Array(object):
             index = self.index
         bs = util.bsify(rom)
         for i, offset in enumerate(index.indices()):
-            logging.debug("Reading %s #%s", self.name, i)
+            log.debug("Reading %s #%s", self.name, i)
             bs.pos = offset * 8
             yield self.struct(bs)
 
@@ -142,7 +145,7 @@ def from_tsv(path, structs):
                                  util.intify(spec.get('priority', 0))))
     arrays = []
     for spec in specs:
-        logging.debug("Loading array: '%s'", spec['name'])
+        log.debug("Loading array: '%s'", spec['name'])
         structure = structs.get(spec['type'], None)
         arrays.append(Array(spec, structure))
     sorter = lambda arr: (isinstance(arr.index, str), arr.priority)

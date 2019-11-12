@@ -11,6 +11,8 @@ import romlib
 from . import util
 
 
+log = logging.getLogger(__name__)
+
 class Field(abc.ABCMeta):
     def __new__(cls, name, bases, dct):
         # If a field base class defines a propertymethod shadowing part

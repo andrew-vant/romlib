@@ -18,6 +18,8 @@ import romlib.charset
 from romtool import util
 from romtool.util import pkgfile
 
+log = logging.getLogger(__name__)
+
 try:
     # Try to do the right thing when piping to head, etc.
     from signal import signal, SIGPIPE, SIG_DFL
@@ -36,11 +38,11 @@ class RomDetectionError(Exception):
     def __str__(self):
         return "ROM sha1 hash not in db: {}".format(self.hash)
     def log(self):
-        logging.error("Couldn't autodetect ROM map for %s", self.filename)
-        logging.error("%s", self)
-        logging.error("The rom may be unsupported, or your copy may "
+        log.error("Couldn't autodetect ROM map for %s", self.filename)
+        log.error("%s", self)
+        log.error("The rom may be unsupported, or your copy may "
                       "be modified, or this may be a save file")
-        logging.error("You will probably have to explicitly supply --map")
+        log.error("You will probably have to explicitly supply --map")
 
 # FIXME: Add subcommand to list available maps on the default search paths.
 # Probably its output should advice the user that it's only what shipped with
@@ -59,15 +61,15 @@ def detect(romfile, maproot=None):
     with open(dbfile) as hashdb, open(romfile, "rb") as rom:
         # FIXME: Reads whole file into memory, likely to fail on giant images,
         # e.g cds/dvds.
-        logging.info("Detecting ROM map for: %s.", romfile)
+        log.info("Detecting ROM map for: %s.", romfile)
         romhash = hashlib.sha1(rom.read()).hexdigest()
-        logging.info("sha1 hash is: %s.", romhash)
+        log.info("sha1 hash is: %s.", romhash)
         try:
             line = next(line for line in hashdb if line.startswith(romhash))
         except StopIteration:
             raise RomDetectionError(romhash, romfile)
         name = line.split(maxsplit=1)[1].strip()
-        logging.info("ROM map found: %s", name)
+        log.info("ROM map found: %s", name)
         return os.path.join(maproot, name)
 
 
@@ -91,33 +93,33 @@ def dump(args):
     # only sometimes. I suspect this means the design needs some work.
     # Can't they be loaded separately? (maybe not, saves may have
     # pointers to stuff in the rom that need dereferencing?)
-    logging.info("Opening ROM file: %s", args.rom)
+    log.info("Opening ROM file: %s", args.rom)
     with open(args.rom, "rb") as rom:
         if args.save:
-            logging.info("Opening SAVE file: %s", args.save)
+            log.info("Opening SAVE file: %s", args.save)
             with open(args.save, "rb") as save:
                 data = rmap.read(rom, save)
         else:
-            logging.debug("No save file specified, skipping")
+            log.debug("No save file specified, skipping")
             data = rmap.read(rom, None)
 
-    logging.info("Dumping ROM data to: %s", args.moddir)
+    log.info("Dumping ROM data to: %s", args.moddir)
     output = rmap.dump(data)
     os.makedirs(args.moddir, exist_ok=True)
     for entity, dicts in output.items():
         filename = "{}/{}.tsv".format(args.moddir, entity)
-        logging.info("Writing output file: %s", filename)
+        log.info("Writing output file: %s", filename)
         try:
             romlib.util.writetsv(filename, dicts, args.force)
         except FileExistsError as err:
-            logging.error(err)
+            log.error(err)
             dest = os.path.abspath(args.moddir)
-            logging.error("Aborting, dump would overwrite files in " + dest)
+            log.error("Aborting, dump would overwrite files in " + dest)
             advice = "(you can use --force if you really mean it)"
-            logging.error(advice)
+            log.error(advice)
             sys.exit(2)
 
-    logging.info("Dump finished")
+    log.info("Dump finished")
 
 
 def build(args):
@@ -129,7 +131,7 @@ def build(args):
     # Have it do the equivalent of build and then merge.
 
     if args.map is None and args.rom is None:
-        logging.error("At least one of -s or -m must be provided.")
+        log.error("At least one of -s or -m must be provided.")
         sys.exit(1)
     if args.map is None:
         try:
@@ -140,7 +142,7 @@ def build(args):
 
     rmap = romlib.RomMap(args.map)
     msg = "Loading mod dir %s using map %s."
-    logging.info(msg, args.moddir, args.map)
+    log.info(msg, args.moddir, args.map)
     data = rmap.load(args.moddir)
     source = "save" if args.save else "rom"
     patch = romlib.Patch(rmap.bytemap(data, source))
@@ -158,7 +160,7 @@ def merge(args):
     changeset = romlib.util.CheckedDict()
     for patchfile in args.patches:
         msg = "Importing changes from %s."
-        logging.info(msg, patchfile)
+        log.info(msg, patchfile)
         changeset.update(romlib.Patch.load(patchfile).changes)
 
     # Filter the complete changeset against a target ROM if asked.
@@ -199,10 +201,10 @@ def apply(args):
     patch = romlib.Patch.load(args.patch)
     tgt = args.target
     _backup(args.target, args.nobackup)
-    logging.info("Applying patch")
+    log.info("Applying patch")
     with open(tgt, "r+b") as f:
         patch.apply(f)
-    logging.warning("Patch applied. Note: You may want to run `romtool "
+    log.warning("Patch applied. Note: You may want to run `romtool "
                     "sanitize` next, especially if this is a save file.")
 
 
@@ -227,53 +229,53 @@ def sanitize(args):
 
     try:
         path = args.map + "/hooks.py"
-        logging.info("Loading map hooks from %s", path)
+        log.info("Loading map hooks from %s", path)
         hooks = SourceFileLoader("hooks", path).load_module()
     except FileNotFoundError:
-        logging.info("%s not present", path)
-        logging.info("Nothing needs to be done")
+        log.info("%s not present", path)
+        log.info("Nothing needs to be done")
         sys.exit(0)
     else:
-        logging.debug("Done loading hooks.")
+        log.debug("Done loading hooks.")
 
     if not args.type:
         args.type = "rom"
     funcname = "sanitize_" + args.type
-    logging.info("Looking for %s hook", funcname)
+    log.info("Looking for %s hook", funcname)
     try:
         sanitize = getattr(hooks, funcname)
     except AttributeError:
-        logging.info("No hook for %s", funcname)
-        logging.info("Nothing needs to be done")
+        log.info("No hook for %s", funcname)
+        log.info("Nothing needs to be done")
         sys.exit(0)
     else:
-        logging.debug("Found hook %s", funcname)
+        log.debug("Found hook %s", funcname)
 
     # Well that was ugly. Here's the actual work:
 
     _backup(args.target, args.nobackup)
     with open(args.target, "r+b") as f:
-        logging.info("Sanitizing '%s'", args.target)
+        log.info("Sanitizing '%s'", args.target)
         sanitize(f)
 
 
 def charmap(args):
     # FIXME: Much of this should probably be moved into the text module or
     # something.
-    logging.info("Loading strings")
+    log.info("Loading strings")
     with open(args.strings) as f:
         strings = [s.strip() for s in f]
 
-    logging.info("Loading rom")
+    log.info("Loading rom")
     with open(args.rom, "rb") as rom:
         data = rom.read()
         view = memoryview(data)
-    logging.debug("rom length: %s bytes", len(data))
+    log.debug("rom length: %s bytes", len(data))
 
-    logging.info("Starting search")
+    log.info("Starting search")
     maps = {s: [] for s in strings}
     for s in strings:
-        logging.debug("Searching for %s", s)
+        log.debug("Searching for %s", s)
         pattern = romlib.charset.Pattern(s)
         for i in range(len(data) - len(s) + 1):
             chunk = view[i:i+len(s)]
@@ -281,32 +283,32 @@ def charmap(args):
                 cmap = pattern.buildmap(chunk)
             except romlib.charset.NoMapping:
                 continue
-            logging.debug("Found match for %s at %s", s, i)
+            log.debug("Found match for %s at %s", s, i)
             if cmap in maps[s]:
-                logging.debug("Duplicate mapping, skipping")
+                log.debug("Duplicate mapping, skipping")
             else:
-                logging.info("New mapping found for '%s' at %s", s, i)
+                log.info("New mapping found for '%s' at %s", s, i)
                 maps[s].append(cmap)
 
         found = len(maps[s])
         msg = "Found %s possible mappings for '%s'"
-        logging.info(msg, found, s)
+        log.info(msg, found, s)
 
     charsets = []
     for m in itertools.product(*maps.values()):
         try:
             merged = romlib.charset.merge(*m)
         except romlib.charset.MappingConflictError:
-            logging.debug("Mapping conflict")
+            log.debug("Mapping conflict")
             pass
         else:
-            logging.info("Found consistent character map.")
+            log.info("Found consistent character map.")
             charsets.append(merged)
 
     if len(charsets) == 0:
-        logging.error("Could not find any consistent character set")
+        log.error("Could not find any consistent character set")
     else:
-        logging.info("Found %s consistent character sets", len(charsets))
+        log.info("Found %s consistent character sets", len(charsets))
 
     for i, cs in enumerate(charsets):
         print("### {} ###".format(i))
@@ -322,12 +324,12 @@ def blocks(args):
     args.num = romlib.util.intify(args.num, None)
     args.min = romlib.util.intify(args.min, 16)
 
-    logging.info("Loading rom")
+    log.info("Loading rom")
     with open(args.rom, "rb") as rom:
         data = rom.read()
 
-    logging.debug("rom length: %s bytes", len(data))
-    logging.info("Starting search")
+    log.debug("rom length: %s bytes", len(data))
+    log.info("Starting search")
 
     blocks = []
     blocklen = 1
@@ -338,7 +340,7 @@ def blocks(args):
             # user specified a byte to search for and this isn't it, skip it.
             if blocklen > args.min:
                 if args.byte is None or last == args.byte:
-                    logging.debug("Noting block at %s", i-blocklen)
+                    log.debug("Noting block at %s", i-blocklen)
                     blocks.append((blocklen, i-blocklen, last))
             blocklen = 1
             last = None
@@ -357,12 +359,12 @@ def meta(args):
 
     writer = None
     for filename in args.rom:
-        logging.info("Inspecting ROM: %s", filename)
+        log.info("Inspecting ROM: %s", filename)
         with open(filename, 'rb') as romfile:
             try:
                 rom = romlib.rom.Rom.make(romfile)
             except romlib.rom.RomFormatError as e:
-                logging.error("Error inspecting %s: %s", filename, str(e))
+                log.error("Error inspecting %s: %s", filename, str(e))
                 continue
         header_data = {"File": filename}
         header_data.update(rom.header.dump())
@@ -383,11 +385,11 @@ def _backup(filename, skip=False):
     """ Make a backup, or warn if no backup."""
     bak = filename + ".bak"
     if not skip:
-        logging.info("Backing up '%s' as '%s'", filename, bak)
+        log.info("Backing up '%s' as '%s'", filename, bak)
         os.replace(filename, bak)
         shutil.copyfile(bak, filename)
     else:
-        logging.warning("Backup suppressed")
+        log.warning("Backup suppressed")
 
 
 def _filterpatch(patch, romfile):
@@ -395,7 +397,7 @@ def _filterpatch(patch, romfile):
     # handled by the caller?
     if romfile is not None:
         msg = "Filtering changes against %s."
-        logging.info(msg, romfile)
+        log.info(msg, romfile)
         with open(romfile, "rb") as rom:
                 patch.filter(rom)
 
@@ -406,8 +408,8 @@ def _writepatch(patch, outfile):
     Logs a bit if needed and redirects to stdout if needed.
     """
     if outfile:
-        logging.info("Creating patch at %s.", outfile)
+        log.info("Creating patch at %s.", outfile)
         patch.save(outfile)
     else:
         patch.to_ipst(sys.stdout)
-    logging.info("There were %s changes.", len(patch.changes))
+    log.info("There were %s changes.", len(patch.changes))

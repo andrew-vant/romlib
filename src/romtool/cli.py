@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import logging.config
 import argparse
 import textwrap
 
@@ -76,7 +77,7 @@ def parser_setup(parser, spec, defaults):
 
 def conf_load(argv):
     """ Get the --conf argument and do the needful with it
-    
+
     This copies argv before parsing, so it doesn't actually consume
     args. It returns the dict from the --conf file, or an empty dict if
     none was provided.
@@ -122,11 +123,6 @@ def main(argv=None):
     # FIXME: After some thought, probably better to use one big string in the
     # source. :-(
 
-    # Do this here so it doesn't happen implicitly later
-    # FIXME: replace with dictConfig. Set root in dictconfig, log
-    # individual files with module name as logger name.
-    logging.basicConfig()
-
     with open(pkgfile("args.yaml")) as argfile:
         argspecs = yaml.load(argfile, Loader=yaml.SafeLoader)
 
@@ -154,17 +150,18 @@ def main(argv=None):
         print(version)
         sys.exit(0)
 
-
     # Set up logging
-    if args.verbose:
-        logging.getLogger().setLevel(logging.INFO)
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+    logconf_key = ('debug' if args.debug
+                    else 'verbose' if args.verbose
+                    else 'default')
+    with open(pkgfile('logging.yaml')) as f:
+        logconf = util.loadyaml(f.read())
+        logging.config.dictConfig(logconf[logconf_key])
 
     # Debug args/conf file data
-    logging.debug("Options loaded from conf, if any:")
+    log.debug("Options loaded from conf, if any:")
     util.debug_structure(defaults)
-    logging.debug("Final input args:")
+    log.debug("Final input args:")
     util.debug_structure(vars(args))
 
     # If no subcommand supplied, print help.
@@ -178,11 +175,11 @@ def main(argv=None):
     try:
         args.func(args)
     except FileNotFoundError as e:
-        logging.critical(str(e))
+        log.critical(str(e))
         sys.exit(2)
     except Exception as e:
-        # logging.critical("Unhandled exception: '{}'".format(str(e)))
-        logging.exception(e)
+        # log.critical("Unhandled exception: '{}'".format(str(e)))
+        log.exception(e)
         if args.pdb:
             import pdb, traceback
             print("\n\nCRASH -- UNHANDLED EXCEPTION")

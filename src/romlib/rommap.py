@@ -14,6 +14,8 @@ from pprint import pprint
 from . import util, text, struct, field, array
 
 
+log = logging.getLogger(__name__)
+
 class RomMap(object):
     """ A ROM Map.
 
@@ -28,46 +30,46 @@ class RomMap(object):
 
         root: The directory holding the map's spec files.
         """
-        logging.info("Loading ROM map from %s", root)
+        log.info("Loading ROM map from %s", root)
         self.structures = OrderedDict()
         self.arrays = OrderedDict()
 
         # Import fields.py and register any field types therein
         try:
             path = root + "fields.py"
-            logging.info("Loading primitive types from %s", path)
+            log.info("Loading primitive types from %s", path)
             modulepath = "{}/fields.py".format(root)
             module = SourceFileLoader("fields", modulepath).load_module()
         except FileNotFoundError:
-            logging.info("%s not present", path)
+            log.info("%s not present", path)
         else:
             for name, cls in inspect.getmembers(module):
                 if isinstance(cls, field.Field):
-                    logging.info("Registering data type '%s'", name)
+                    log.info("Registering data type '%s'", name)
                     field.register(cls)
 
         # Find all tbl files in the texttables directory and register them.
         # FIXME: It should be possible to hook codecs in just like structs or
         # whatever. That makes it possible to handle things like compressed
         # text.
-        logging.info("Loading text tables")
+        log.info("Loading text tables")
         for name, path in util.get_subfiles(root, "texttables", ".tbl"):
             msg = "Loading text table '%s' from %s"
-            logging.info(msg, name, path)
+            log.info(msg, name, path)
             with open(path) as f:
                 text.add_tt(name, f)
 
         # Repeat for structs.
-        logging.info("Loading structures")
+        log.info("Loading structures")
         structfiles = util.get_subfiles(root, 'structs', '.tsv')
         for i, (name, path) in enumerate(structfiles):
-            logging.info("Loading structure '%s' from '%s'", name, path)
+            log.info("Loading structure '%s' from '%s'", name, path)
             structure = struct.load(path)
             self.structures[name] = structure
 
         # Now load the array definitions
         path = root + "/arrays.tsv"
-        logging.info("Loading array specs from %s", path)
+        log.info("Loading array specs from %s", path)
         for adef in array.from_tsv(path, self.structures):
             self.arrays[adef.name] = adef
 
@@ -84,7 +86,7 @@ class RomMap(object):
             if adef.source == "save":
                 if save is None:
                     msg = "Skipping '%s', save file not available"
-                    logging.info(msg, adef.name)
+                    log.info(msg, adef.name)
                     continue
                 else:
                     source = save
@@ -120,7 +122,7 @@ class RomMap(object):
             arrays = list(arrays)
             msg = "Serializing entity set '%s' (%s)"
             structnames = ", ".join(a.name for a in arrays)
-            logging.info(msg, entity, structnames)
+            log.info(msg, entity, structnames)
             data_subset = [getattr(data, array.name) for array in arrays]
             output[entity] = array.mergedump(data_subset, True, True)
         return output
@@ -131,16 +133,16 @@ class RomMap(object):
         data = SimpleNamespace()
         for entity in set(adef.set for adef in self.arrays.values()):
             filename = "{}/{}.tsv".format(modfolder, entity)
-            logging.info("Loading arrays from: %s", filename)
+            log.info("Loading arrays from: %s", filename)
             try:
                 contents = util.readtsv(filename)
             except FileNotFoundError:
-                logging.warning("%s missing, skipping", filename)
+                log.warning("%s missing, skipping", filename)
                 continue
             arrays = (a for a in self.arrays.values() if a.set == entity)
             for adef in arrays:
                 msg = "Loading array data for '%s'"
-                logging.info(msg, adef.name)
+                log.info(msg, adef.name)
                 setattr(data, adef.name, list(adef.load(contents)))
         return data
 
@@ -154,7 +156,7 @@ class RomMap(object):
             adata = getattr(data, name, None)
             if not adata:
                 msg = "Tried to patch data from '%s' but it isn't there"
-                logging.warning(msg, name)
+                log.warning(msg, name)
                 continue
             index = self._mkindex(adef, data)
             bmap.update(adef.bytemap(adata, index))

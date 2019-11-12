@@ -3,8 +3,9 @@ from os.path import join as pathjoin
 
 import yaml
 import logging
+import logging.config
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 def whereami(path):
     """ Get the full path to the containing directory of a file.
@@ -25,4 +26,4 @@ def loadyaml(data):
 def debug_structure(data, loglevel=logging.DEBUG):
     """ yamlize a data structure and log it as debug """
     for line in yaml.dump(data).splitlines():
-        logger.log(loglevel, line)
+        log.log(loglevel, line)

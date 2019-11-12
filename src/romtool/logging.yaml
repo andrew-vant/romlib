@@ -1,0 +1,41 @@
+# Controls diagnostic output from --verbose, --debug, etc.
+
+all: &shared
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    normal:
+      format: "{levelname}\t{message}"
+      datefmt: '%Y-%m-%dT%H:%M:%S'  # Unused for now
+      style: "{"
+    debug:
+      format: "{levelname}\t{name}:{lineno}\t{message}"
+      datefmt: '%Y-%m-%dT%H:%M:%S'
+      style: "{"
+  handlers:
+    normal:
+      class: logging.StreamHandler
+      formatter: normal
+      stream: ext://sys.stderr
+    debug:
+      class: logging.StreamHandler
+      formatter: debug
+      stream: ext://sys.stderr
+
+default:
+  << : *shared
+  root:
+    level: WARN
+    handlers: [normal]
+
+verbose:
+  << : *shared
+  root:
+    level: INFO
+    handlers: [normal]
+
+debug:
+  << : *shared
+  root:
+    level: DEBUG
+    handlers: [debug]

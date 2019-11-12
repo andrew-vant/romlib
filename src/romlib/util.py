@@ -11,6 +11,7 @@ from os.path import join as pathjoin
 from bitstring import ConstBitStream
 
 
+log = logging.getLogger(__name__)
 libroot = dirname(realpath(__file__))
 
 # romtool's expected format is tab-separated values, no quoting, no
@@ -64,7 +65,7 @@ class CheckedDict(dict):
 
     def _check_conflict(self, key, value):
         if key in self and value != self[key]:
-            logging.debug(self.cmsg, key, self[key], value)
+            log.debug(self.cmsg, key, self[key], value)
 
 
 @contextlib.contextmanager

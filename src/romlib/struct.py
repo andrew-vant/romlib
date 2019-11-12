@@ -34,6 +34,9 @@ from . import util
 from . import field
 
 
+log = logging.getLogger(__name__)
+
+
 class MetaStruct(type):
     def __init__(cls, name, bases, dct):
         # Self.fields will get set by super().__init__; this is more for
@@ -459,7 +462,7 @@ def define_struct(name, specs):
 
     fields = OrderedDict()
     for spec in specs:
-        logging.debug("Processing field '%s'", spec['id'])
+        log.debug("Processing field '%s'", spec['id'])
         fid = spec['id']
         fields[fid] = field.define_field(fid, spec)
     bases = (Structure,)
@@ -471,24 +474,24 @@ def define_struct(name, specs):
 def load(path):
     path = pathlib.Path(path)  # I hate lines like this so much.
     name = path.stem
-    logging.debug("Loading '%s' definition from %s", name, path)
+    log.debug("Loading '%s' definition from %s", name, path)
     with path.open() as f:
         specs = list(csv.DictReader(f, dialect='romtool'))
     base = define_struct(name, specs)
     modpath = path.parent.joinpath(name + '.py')
-    logging.debug("Looking for make_struct hook in %s", modpath)
+    log.debug("Looking for make_struct hook in %s", modpath)
     try:
         module = SourceFileLoader(name, str(modpath)).load_module()
     except FileNotFoundError:
         msg = "Nothing at %s, skipping"
-        logging.debug(msg, modpath)
+        log.debug(msg, modpath)
         return base
     if not hasattr(module, "make_struct"):
         msg = "%s doesn't contain make_struct, skipping"
-        logging.debug(msg, modpath)
+        log.debug(msg, modpath)
         return base
     msg = "Processing hook %s.make_struct for '%s' in %s"
-    logging.debug(msg, module.__name__, name, path)
+    log.debug(msg, module.__name__, name, path)
     newbase = module.make_struct(base)
     if not isinstance(newbase, type) or not issubclass(newbase, base):
         msg = ("{}.make_struct() in {} failed to return subclass of {}; "

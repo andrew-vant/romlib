@@ -26,6 +26,8 @@ import logging
 from pprint import pprint
 from bitstring import BitArray
 
+log = logging.getLogger(__name__)
+
 codes = {0x03: "drop",
          0x07: "script",
          0x08: "resist"}
@@ -39,7 +41,7 @@ def make_struct(base):
                     # Log a warning rather than raising an exception; otherwise
                     # you won't be able to dump bugged monsters.
                     msg = "Unknown monster pointer code: %s, targeting %s"
-                    logging.warning(msg, code, pointer)
+                    log.warning(msg, code, pointer)
                     break
                 field = self.fields[codes[code]]
                 if code in [0x07, 0x08]:

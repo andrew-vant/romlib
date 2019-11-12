@@ -15,6 +15,10 @@ from pprint import pprint
 
 from patricia import trie
 
+
+log = logging.getLogger(__name__)
+
+
 class TextTable(object):
     """ A ROM text table, used for decoding and encoding text strings."""
     def __init__(self, name, f):
