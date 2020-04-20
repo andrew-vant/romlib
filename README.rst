@@ -5,6 +5,10 @@ A game-independent ROM-editing API.
 
 (and a simple frontend for using it)
 
+(status: alpha as hell. It works, three cheers for proof of concept, but
+the implementation is ugly and fragile. I'm trying to come up with
+something better in the restruct branch)
+
 What is this?
 -------------
 
